@@ -1,0 +1,140 @@
+version: '3.7'
+
+services:
+
+  # Nginx reverse proxy
+  nginx-prod:
+    container_name: nginx-prod
+    restart: always
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    ports:
+      # - 5000:80
+      - 80:80 # for production
+      # - 443:443
+    depends_on:
+      - web
+    # network_mode: "host"
+
+  web:
+    build: 
+      context: ./project
+    image: web
+    container_name: web
+    ports:
+      - 5000:5000
+    # expose:
+    #   - 5000
+    # command: python manage.py run -h 0.0.0.0
+    command: gunicorn -c gunicorn_config.py wsgi:app
+    # command: ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "3", "app:app"]
+    volumes:
+      - static_volume:/uploads # <-- bind the static volume
+      - ./project/:/var/www
+    env_file:
+      - ./.env
+    environment:
+      - FLASK_DEBUG=${APP_DEBUG}
+      - APP_SETTINGS=server.config.DevelopmentConfig
+      # - CELERY_BROKER_URL=amqp://admin:mypass@rabbit-prod:5672
+      # - CELERY_BROKER=amqp://admin:mypass@rabbit-prod:5672
+      # - CELERY_BACKEND=redis://redis:6379/0
+      # - MONGODB_DATABASE:${MONGO_INITDB_DATABASE}
+      # - MONGODB_USERNAME:${MONGODB_USERNAME}
+      # - MONGODB_PASSWORD:${MONGODB_PASSWORD}
+      # - MONGODB_HOSTNAME:${MONGODB_HOSTNAME}
+    depends_on:
+      - redis-prod
+      # - mongo-db
+    # network_mode: "host"
+
+  worker:
+    image: web
+    container_name: worker
+    command: python manage.py run_worker
+    user: nobody
+    volumes:
+      - static_volume:/uploads # <-- bind the static volume
+      - ./project/:/var/www
+    env_file:
+      - ./.env
+    environment:
+      - FLASK_DEBUG=${APP_DEBUG}
+      - APP_SETTINGS=server.config.DevelopmentConfig
+      # - CELERY_BROKER_URL=amqp://admin:mypass@rabbit-prod:5672
+      # - CELERY_BROKER=amqp://admin:mypass@rabbit-prod:5672
+      # - CELERY_BACKEND=redis://redis:6379/0
+      # - MONGODB_DATABASE:${MONGO_INITDB_DATABASE}
+      # - MONGODB_USERNAME:${MONGODB_USERNAME}
+      # - MONGODB_PASSWORD:${MONGODB_PASSWORD}
+      # - MONGODB_HOSTNAME:${MONGODB_HOSTNAME}
+    depends_on:
+      - redis-prod
+      - web
+      # - mongo-db
+    # network_mode: "host"
+
+  dashboard:
+    build: 
+      context: ./project/dashboard
+    image: dashboard
+    container_name: dashboard
+    ports:
+      - 9181:9181
+    # expose:
+    #     - 9181
+    command: rq-dashboard -H redis-prod
+    # command: rq-dashboard -H 0.0.0.0
+    depends_on:
+      - redis-prod
+    # network_mode: "host"
+
+  # mongo-db:
+  #   container_name: mongo-db
+  #   restart: unless-stopped
+  #   hostname: mongo-db
+  #   build:
+  #     context: ./mongodb
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - 27017:27017
+  #   # expose:
+  #   #     - 27017
+  #   volumes: 
+  #     - mongodb_master_data:/data/db
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     MONGODB_INITSCRIPTS_DIR: /docker-entrypoint-initdb.d
+  #     MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+  #     MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+  #     MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
+  #     MONGODB_DATA_DIR: /data/db
+  #     MONDODB_LOG_DIR: /dev/null
+  #   command: mongod --auth
+  #     # network_mode: "host"
+
+  # Redis based cache
+  redis-prod:
+    container_name: "redis-prod"
+    image: redis:5-alpine
+    ports:
+      - 6379:6379
+    volumes:
+      - './redis.conf:/usr/local/etc/redis/redis.conf'
+    # expose:
+    #   - 6379
+    # network_mode: "host"
+
+  # supervisord
+  # supervisord-prod:
+  #   container_name: supervisord-prod
+  #   build:
+  #     context: ./supervisord
+  #     dockerfile: Dockerfile
+
+volumes: 
+  static_volume:
+  # mongodb_master_data:
+  #   driver: local

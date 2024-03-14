@@ -1,0 +1,29 @@
+{% extends "_base.html" %}
+
+{% block content %}
+
+<div id="all_tasks" class="starter-template">
+    <h1>Presto Log Upload</h1>
+    <hr><br>
+    <div>
+      <h2>Get All Tasks</h2>
+    </div>
+    <br>
+    <div>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Task ID [click on ID to get details]</th>
+          </tr>
+        </thead>
+        <tbody id="alltasks">
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <iframe id="qr_dashboard" src="" width="95%" height="500px" />
+    </div>
+</div>
+
+{% endblock %}
